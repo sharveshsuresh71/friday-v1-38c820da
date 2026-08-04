@@ -43,6 +43,7 @@ export function useFriday() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const busyRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
+  const handleUtteranceRef = useRef<((wav: Blob) => Promise<void>) | null>(null);
 
   useEffect(() => {
     setTurns(loadTurns());
