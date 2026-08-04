@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Hands-free voice AI. Tap once, speak naturally, and hear a calm spoken reply — no typing, no setup.",
+          "FRIDAY is a hands-free voice AI assistant. Tap once, speak naturally, and hear a calm spoken reply — no typing, no setup.",
       },
     ],
   }),
