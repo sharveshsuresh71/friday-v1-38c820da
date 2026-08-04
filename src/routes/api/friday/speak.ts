@@ -4,12 +4,50 @@ export const Route = createFileRoute("/api/friday/speak")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env["LOVABLE_API_KEY"];
-        if (!key) return new Response("AI is not configured", { status: 500 });
-
         const body = (await request.json().catch(() => null)) as { text?: string } | null;
         const text = body?.text?.trim();
         if (!text) return new Response("Text is required", { status: 400 });
+
+        const elevenKey = process.env["ELEVENLABS_API_KEY"];
+        const voiceId = process.env["ELEVENLABS_VOICE_ID"];
+
+        if (elevenKey && voiceId) {
+          const res = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=mp3_44100_128`,
+            {
+              method: "POST",
+              headers: {
+                "xi-api-key": elevenKey,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                text: text.slice(0, 4000),
+                model_id: "eleven_turbo_v2_5",
+                voice_settings: {
+                  stability: 0.45,
+                  similarity_boost: 0.8,
+                  style: 0.35,
+                  use_speaker_boost: true,
+                },
+              }),
+            },
+          );
+
+          if (res.ok && res.body) {
+            return new Response(res.body, {
+              headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+            });
+          }
+
+          // ElevenLabs unavailable (plan limits, quota, bad key) — fall through to Lovable AI voice.
+          console.error(
+            `ElevenLabs speech failed [${res.status}]: ${await res.text().catch(() => "")}`,
+          );
+        }
+
+
+        const key = process.env["LOVABLE_API_KEY"];
+        if (!key) return new Response("AI is not configured", { status: 500 });
 
         const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
           method: "POST",
