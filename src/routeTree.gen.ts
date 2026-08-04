@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiFridayReplyRouteImport } from './routes/api/friday/reply'
 import { Route as ApiFridayTranscribeRouteImport } from './routes/api/friday/transcribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFridayReplyRoute = ApiFridayReplyRouteImport.update({
+  id: '/api/friday/reply',
+  path: '/api/friday/reply',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
@@ -25,27 +31,31 @@ const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/friday/transcribe'
+  fullPaths: '/' | '/api/friday/reply' | '/api/friday/transcribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/friday/transcribe'
-  id: '__root__' | '/' | '/api/friday/transcribe'
+  to: '/' | '/api/friday/reply' | '/api/friday/transcribe'
+  id: '__root__' | '/' | '/api/friday/reply' | '/api/friday/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiFridayReplyRoute: typeof ApiFridayReplyRoute
   ApiFridayTranscribeRoute: typeof ApiFridayTranscribeRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/friday/reply': {
+      id: '/api/friday/reply'
+      path: '/api/friday/reply'
+      fullPath: '/api/friday/reply'
+      preLoaderRoute: typeof ApiFridayReplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/friday/transcribe': {
@@ -70,18 +87,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiFridayReplyRoute: ApiFridayReplyRoute,
   ApiFridayTranscribeRoute: ApiFridayTranscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
