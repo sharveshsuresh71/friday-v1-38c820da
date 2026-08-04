@@ -113,6 +113,7 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
 
   processor.onaudioprocess = (event) => {
     if (stopped) return;
+    lastFrameAt = Date.now();
     const input = event.inputBuffer.getChannelData(0);
     const frameMs = (input.length / ctx.sampleRate) * 1000;
 
