@@ -97,6 +97,7 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
   let speechMs = 0;
   let silenceMs = 0;
   let capturedMs = 0;
+  let lastFrameAt = Date.now();
 
   const reset = () => {
     chunks = [];
