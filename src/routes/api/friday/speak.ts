@@ -33,16 +33,18 @@ export const Route = createFileRoute("/api/friday/speak")({
             },
           );
 
-          if (!res.ok || !res.body) {
-            const errorBody = await res.text().catch(() => "");
-            console.error(`ElevenLabs speech failed [${res.status}]: ${errorBody}`);
-            return new Response(errorBody || "Speech failed", { status: res.status });
+          if (res.ok && res.body) {
+            return new Response(res.body, {
+              headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+            });
           }
 
-          return new Response(res.body, {
-            headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
-          });
+          // ElevenLabs unavailable (plan limits, quota, bad key) — fall through to Lovable AI voice.
+          console.error(
+            `ElevenLabs speech failed [${res.status}]: ${await res.text().catch(() => "")}`,
+          );
         }
+
 
         const key = process.env["LOVABLE_API_KEY"];
         if (!key) return new Response("AI is not configured", { status: 500 });
