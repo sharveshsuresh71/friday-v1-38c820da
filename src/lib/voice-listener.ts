@@ -69,6 +69,10 @@ export type Listener = {
   stop: () => void;
   /** Pause capture (e.g. while FRIDAY is speaking) without dropping the mic. */
   setPaused: (paused: boolean) => void;
+  /** Resume the audio graph after playback/backgrounding suspended it. */
+  resume: () => Promise<void>;
+  /** True while the mic graph is still alive and receiving audio. */
+  isAlive: () => boolean;
 };
 
 const SPEECH_THRESHOLD = 0.018;
