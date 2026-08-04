@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiFridayTranscribeRouteImport } from './routes/api/friday/transcribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
+  id: '/api/friday/transcribe',
+  path: '/api/friday/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/friday/transcribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/friday/transcribe'
+  id: '__root__' | '/' | '/api/friday/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiFridayTranscribeRoute: typeof ApiFridayTranscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/friday/transcribe': {
+      id: '/api/friday/transcribe'
+      path: '/api/friday/transcribe'
+      fullPath: '/api/friday/transcribe'
+      preLoaderRoute: typeof ApiFridayTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiFridayTranscribeRoute: ApiFridayTranscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
