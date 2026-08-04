@@ -10,33 +10,69 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiFridayReplyRouteImport } from './routes/api/friday/reply'
+import { Route as ApiFridaySpeakRouteImport } from './routes/api/friday/speak'
+import { Route as ApiFridayTranscribeRouteImport } from './routes/api/friday/transcribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFridayReplyRoute = ApiFridayReplyRouteImport.update({
+  id: '/api/friday/reply',
+  path: '/api/friday/reply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFridaySpeakRoute = ApiFridaySpeakRouteImport.update({
+  id: '/api/friday/speak',
+  path: '/api/friday/speak',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
+  id: '/api/friday/transcribe',
+  path: '/api/friday/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
+  '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/api/friday/reply' | '/api/friday/speak' | '/api/friday/transcribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/friday/reply' | '/api/friday/speak' | '/api/friday/transcribe'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/friday/reply'
+    | '/api/friday/speak'
+    | '/api/friday/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiFridayReplyRoute: typeof ApiFridayReplyRoute
+  ApiFridaySpeakRoute: typeof ApiFridaySpeakRoute
+  ApiFridayTranscribeRoute: typeof ApiFridayTranscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +84,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/friday/reply': {
+      id: '/api/friday/reply'
+      path: '/api/friday/reply'
+      fullPath: '/api/friday/reply'
+      preLoaderRoute: typeof ApiFridayReplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/friday/speak': {
+      id: '/api/friday/speak'
+      path: '/api/friday/speak'
+      fullPath: '/api/friday/speak'
+      preLoaderRoute: typeof ApiFridaySpeakRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/friday/transcribe': {
+      id: '/api/friday/transcribe'
+      path: '/api/friday/transcribe'
+      fullPath: '/api/friday/transcribe'
+      preLoaderRoute: typeof ApiFridayTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiFridayReplyRoute: ApiFridayReplyRoute,
+  ApiFridaySpeakRoute: ApiFridaySpeakRoute,
+  ApiFridayTranscribeRoute: ApiFridayTranscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
