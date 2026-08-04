@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiFridayReplyRouteImport } from './routes/api/friday/reply'
+import { Route as ApiFridaySpeakRouteImport } from './routes/api/friday/speak'
 import { Route as ApiFridayTranscribeRouteImport } from './routes/api/friday/transcribe'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const ApiFridayReplyRoute = ApiFridayReplyRouteImport.update({
   path: '/api/friday/reply',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFridaySpeakRoute = ApiFridaySpeakRouteImport.update({
+  id: '/api/friday/speak',
+  path: '/api/friday/speak',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
   id: '/api/friday/transcribe',
   path: '/api/friday/transcribe',
@@ -32,30 +38,40 @@ const ApiFridayTranscribeRoute = ApiFridayTranscribeRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/friday/reply': typeof ApiFridayReplyRoute
+  '/api/friday/speak': typeof ApiFridaySpeakRoute
   '/api/friday/transcribe': typeof ApiFridayTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/friday/reply' | '/api/friday/transcribe'
+  fullPaths:
+    '/' | '/api/friday/reply' | '/api/friday/speak' | '/api/friday/transcribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/friday/reply' | '/api/friday/transcribe'
-  id: '__root__' | '/' | '/api/friday/reply' | '/api/friday/transcribe'
+  to: '/' | '/api/friday/reply' | '/api/friday/speak' | '/api/friday/transcribe'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/friday/reply'
+    | '/api/friday/speak'
+    | '/api/friday/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiFridayReplyRoute: typeof ApiFridayReplyRoute
+  ApiFridaySpeakRoute: typeof ApiFridaySpeakRoute
   ApiFridayTranscribeRoute: typeof ApiFridayTranscribeRoute
 }
 
@@ -75,6 +91,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFridayReplyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/friday/speak': {
+      id: '/api/friday/speak'
+      path: '/api/friday/speak'
+      fullPath: '/api/friday/speak'
+      preLoaderRoute: typeof ApiFridaySpeakRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/friday/transcribe': {
       id: '/api/friday/transcribe'
       path: '/api/friday/transcribe'
@@ -88,6 +111,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiFridayReplyRoute: ApiFridayReplyRoute,
+  ApiFridaySpeakRoute: ApiFridaySpeakRoute,
   ApiFridayTranscribeRoute: ApiFridayTranscribeRoute,
 }
 export const routeTree = rootRouteImport
