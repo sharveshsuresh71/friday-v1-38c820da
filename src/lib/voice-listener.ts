@@ -167,6 +167,14 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
     setPaused: (value: boolean) => {
       paused = value;
       if (value) reset();
+      else lastFrameAt = Date.now();
     },
+    resume: async () => {
+      if (stopped) return;
+      if (ctx.state !== "running") await ctx.resume().catch(() => {});
+      lastFrameAt = Date.now();
+    },
+    isAlive: () =>
+      !stopped && ctx.state !== "closed" && stream.getAudioTracks().some((t) => t.readyState === "live"),
   };
 }
