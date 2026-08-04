@@ -69,6 +69,10 @@ export type Listener = {
   stop: () => void;
   /** Pause capture (e.g. while FRIDAY is speaking) without dropping the mic. */
   setPaused: (paused: boolean) => void;
+  /** Resume the audio graph after playback/backgrounding suspended it. */
+  resume: () => Promise<void>;
+  /** True while the mic graph is still alive and receiving audio. */
+  isAlive: () => boolean;
 };
 
 const SPEECH_THRESHOLD = 0.018;
@@ -93,6 +97,7 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
   let speechMs = 0;
   let silenceMs = 0;
   let capturedMs = 0;
+  let lastFrameAt = Date.now();
 
   const reset = () => {
     chunks = [];
@@ -109,6 +114,7 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
 
   processor.onaudioprocess = (event) => {
     if (stopped) return;
+    lastFrameAt = Date.now();
     const input = event.inputBuffer.getChannelData(0);
     const frameMs = (input.length / ctx.sampleRate) * 1000;
 
@@ -161,6 +167,14 @@ export async function startListening(handlers: ListenerHandlers): Promise<Listen
     setPaused: (value: boolean) => {
       paused = value;
       if (value) reset();
+      else lastFrameAt = Date.now();
     },
+    resume: async () => {
+      if (stopped) return;
+      if (ctx.state !== "running") await ctx.resume().catch(() => {});
+      lastFrameAt = Date.now();
+    },
+    isAlive: () =>
+      !stopped && ctx.state !== "closed" && stream.getAudioTracks().some((t) => t.readyState === "live"),
   };
 }

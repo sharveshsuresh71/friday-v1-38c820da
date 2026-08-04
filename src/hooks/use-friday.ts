@@ -43,6 +43,7 @@ export function useFriday() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const busyRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
+  const handleUtteranceRef = useRef<((wav: Blob) => Promise<void>) | null>(null);
 
   useEffect(() => {
     setTurns(loadTurns());
@@ -126,11 +127,36 @@ export function useFriday() {
         setState("listening");
       } finally {
         busyRef.current = false;
-        listenerRef.current?.setPaused(false);
+        const listener = listenerRef.current;
+        if (listener) {
+          listener.setPaused(false);
+          await listener.resume();
+          // Chrome (esp. Android) can tear down the mic graph during playback —
+          // rebuild it so the session keeps running for unlimited turns.
+          if (!listener.isAlive()) {
+            listener.stop();
+            listenerRef.current = null;
+            try {
+              listenerRef.current = await startListening({
+                onLevel: setLevel,
+                onUtterance: (wav) => void handleUtteranceRef.current?.(wav),
+              });
+              setState("listening");
+            } catch {
+              setError("Microphone stopped. Tap start to continue.");
+              setLive(false);
+              setState("idle");
+            }
+          }
+        }
       }
     },
     [persist, speak],
   );
+
+  useEffect(() => {
+    handleUtteranceRef.current = handleUtterance;
+  }, [handleUtterance]);
 
   const stop = useCallback(() => {
     listenerRef.current?.stop();
