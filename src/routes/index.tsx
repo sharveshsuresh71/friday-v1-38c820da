@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ClientOnly } from "@tanstack/react-router";
 import { Mic, Square, RotateCcw } from "lucide-react";
 import { useFriday, type FridayState } from "@/hooks/use-friday";
+import { FridayOrb } from "@/components/friday-orb";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,28 +33,13 @@ const STATUS_LABEL: Record<FridayState, string> = {
 };
 
 function Orb({ state, level }: { state: FridayState; level: number }) {
-  const active = state !== "idle";
-  const scale = state === "listening" ? 1 + level * 0.22 : state === "speaking" ? 1.08 : 1;
-
   return (
-    <div className="relative flex h-64 w-64 items-center justify-center">
-      <div
-        className="absolute inset-0 rounded-full bg-halo blur-2xl transition-opacity duration-700"
-        style={{ opacity: active ? 1 : 0.35 }}
-      />
-      <div
-        className={`absolute inset-6 rounded-full border border-primary/25 ${
-          state === "thinking" ? "animate-spin" : "animate-breathe"
-        }`}
-        style={{ animationDuration: state === "thinking" ? "2.4s" : undefined }}
-      />
-      <div
-        className="h-32 w-32 rounded-full bg-linear-to-br from-primary/90 to-primary/40 shadow-orb transition-transform duration-100 ease-out"
-        style={{ transform: `scale(${scale})` }}
-      />
+    <div className="relative h-72 w-72">
+      <FridayOrb state={state} level={level} />
     </div>
   );
 }
+
 
 function FridayScreen() {
   const { state, level, error, live, start, stop, clear, lastReply, lastAsk, turns } = useFriday();

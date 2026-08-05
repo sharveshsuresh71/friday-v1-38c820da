@@ -1,0 +1,26 @@
+{
+  "name": "FRIDAY — Voice AI Assistant",
+  "short_name": "FRIDAY",
+  "description": "Hands-free voice AI assistant. Tap once and just talk.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "permissions": ["microphone"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

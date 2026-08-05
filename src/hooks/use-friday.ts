@@ -175,17 +175,42 @@ export function useFriday() {
       const audio = audioRef.current ?? new Audio();
       audioRef.current = audio;
 
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        throw new DOMException("unsupported", "NotSupportedError");
+      }
+
       listenerRef.current = await startListening({
         onLevel: setLevel,
         onUtterance: (wav) => void handleUtterance(wav),
       });
       setLive(true);
       setState("listening");
-    } catch {
-      setError("Microphone access is needed. Allow it in your browser settings and try again.");
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      const insecure =
+        typeof window !== "undefined" &&
+        !window.isSecureContext &&
+        window.location.hostname !== "localhost";
+
+      if (insecure || name === "NotSupportedError") {
+        setError(
+          "Microphone needs a secure connection. Open the app with https:// (the installed app icon uses it too) and try again.",
+        );
+      } else if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(
+          "Microphone is blocked for this app. Open your phone's Settings → Apps → FRIDAY → Permissions → Microphone and allow it, then reopen the app. In Chrome: tap the lock icon in the address bar → Permissions → Microphone → Allow.",
+        );
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setError("No microphone was found on this device.");
+      } else if (name === "NotReadableError" || name === "AbortError") {
+        setError("Another app is using the microphone. Close it and try again.");
+      } else {
+        setError("Microphone couldn't start. Allow mic access and try again.");
+      }
       setState("idle");
     }
   }, [handleUtterance]);
+
 
   const clear = useCallback(() => {
     persist([]);
