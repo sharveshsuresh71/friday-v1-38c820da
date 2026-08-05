@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { FridayState } from "@/hooks/use-friday";
 
-type Point = { x: number; y: number; z: number; seed: number };
+type Point = { x: number; y: number; z: number; seed: number; r: number };
 
-const COUNT = 900;
+const COUNT = 1100;
+const NEIGHBORS = 3;
 
 function makePoints(): Point[] {
   const pts: Point[] = [];
@@ -17,10 +18,42 @@ function makePoints(): Point[] {
       y: Math.sin(phi) * Math.sin(theta),
       z: Math.cos(phi),
       seed: Math.random() * Math.PI * 2,
+      // slight shell thickness so the mesh reads as an organic filament web
+      r: 0.86 + Math.random() * 0.14,
     });
   }
   return pts;
 }
+
+/** Link each node to its nearest neighbours to form the filament network. */
+function makeEdges(pts: Point[]): Array<[number, number]> {
+  const edges: Array<[number, number]> = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i]!;
+    const best: Array<{ j: number; d: number }> = [];
+    for (let j = 0; j < pts.length; j++) {
+      if (i === j) continue;
+      const b = pts[j]!;
+      const d = (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2;
+      if (best.length < NEIGHBORS) {
+        best.push({ j, d });
+        best.sort((m, n) => m.d - n.d);
+      } else if (d < best[best.length - 1]!.d) {
+        best[best.length - 1] = { j, d };
+        best.sort((m, n) => m.d - n.d);
+      }
+    }
+    for (const { j } of best) {
+      const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push([i, j]);
+    }
+  }
+  return edges;
+}
+
 
 /**
  * Animated pseudo-3D particle core: a rotating sphere of filaments that
