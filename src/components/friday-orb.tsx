@@ -74,6 +74,8 @@ export function FridayOrb({ state, level }: { state: FridayState; level: number 
     if (!ctx) return;
 
     const points = makePoints();
+    const edges = makeEdges(points);
+    const proj = points.map(() => ({ x: 0, y: 0, d: 0, z: 0 }));
     let raf = 0;
     let width = 0;
     let height = 0;
@@ -109,18 +111,19 @@ export function FridayOrb({ state, level }: { state: FridayState; level: number 
       const cx = width / 2;
       const cy = height / 2;
       const base = Math.min(width, height) * 0.34;
-      const radius = base * (1 + smoothed * 0.28 + Math.sin(time * 1.1) * 0.02);
+      const radius = base * (1 + smoothed * 0.26 + Math.sin(time * 1.1) * 0.02);
 
       ctx.clearRect(0, 0, width, height);
+      ctx.globalCompositeOperation = "lighter";
 
-      // core glow
-      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.9);
-      glow.addColorStop(0, `rgba(190, 235, 255, ${0.28 + smoothed * 0.35})`);
-      glow.addColorStop(0.35, "rgba(120, 190, 230, 0.10)");
+      // outer atmosphere
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 2);
+      glow.addColorStop(0, `rgba(180, 230, 255, ${0.22 + smoothed * 0.3})`);
+      glow.addColorStop(0.4, "rgba(110, 185, 230, 0.07)");
       glow.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius * 1.9, 0, Math.PI * 2);
+      ctx.arc(cx, cy, radius * 2, 0, Math.PI * 2);
       ctx.fill();
 
       const cosR = Math.cos(rot);
@@ -128,47 +131,61 @@ export function FridayOrb({ state, level }: { state: FridayState; level: number 
       const cosT = Math.cos(tilt);
       const sinT = Math.sin(tilt);
 
-      for (const p of points) {
-        // wobble each filament outward
-        const wob = 1 + Math.sin(time * 1.6 + p.seed) * (0.06 + smoothed * 0.22);
+      // project every node
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i]!;
+        const wob = p.r * (1 + Math.sin(time * 1.5 + p.seed) * (0.05 + smoothed * 0.18));
 
-        // rotate Y then X
         let x = p.x * cosR + p.z * sinR;
         let z = -p.x * sinR + p.z * cosR;
-        let y = p.y * cosT - z * sinT;
+        const y = p.y * cosT - z * sinT;
         z = p.y * sinT + z * cosT;
 
         const depth = 1.9 / (2.6 - z);
-        const px = cx + x * radius * wob * depth;
-        const py = cy + y * radius * wob * depth;
+        const q = proj[i]!;
+        q.x = cx + x * radius * wob * depth;
+        q.y = cy + y * radius * wob * depth;
+        q.d = depth;
+        q.z = z;
+      }
 
-        // trailing filament toward the core
-        const inner = 0.35 + smoothed * 0.2;
-        const ix = cx + x * radius * inner * depth;
-        const iy = cy + y * radius * inner * depth;
-
-        const alpha = Math.max(0, (z + 1) / 2) * (0.16 + smoothed * 0.3);
-        ctx.strokeStyle = `rgba(200, 240, 255, ${alpha})`;
-        ctx.lineWidth = 0.6 * depth;
+      // filament network between neighbouring nodes
+      ctx.lineCap = "round";
+      for (const [i, j] of edges) {
+        const a = proj[i]!;
+        const b = proj[j]!;
+        const zf = Math.max(0, ((a.z + b.z) / 2 + 1) / 2);
+        const alpha = (0.05 + zf * zf * 0.3) * (0.75 + smoothed * 0.9);
+        ctx.strokeStyle = `rgba(206, 240, 255, ${alpha})`;
+        ctx.lineWidth = 0.35 + zf * 0.55;
         ctx.beginPath();
-        ctx.moveTo(ix, iy);
-        ctx.lineTo(px, py);
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
         ctx.stroke();
+      }
 
-        ctx.fillStyle = `rgba(225, 248, 255, ${alpha * 1.6})`;
+      // node particles
+      for (let i = 0; i < proj.length; i++) {
+        const q = proj[i]!;
+        const zf = Math.max(0, (q.z + 1) / 2);
+        ctx.fillStyle = `rgba(232, 250, 255, ${0.1 + zf * zf * 0.55})`;
         ctx.beginPath();
-        ctx.arc(px, py, Math.max(0.4, 1.1 * depth), 0, Math.PI * 2);
+        ctx.arc(q.x, q.y, Math.max(0.3, 0.85 * q.d), 0, Math.PI * 2);
         ctx.fill();
       }
 
       // bright nucleus
-      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.3);
-      core.addColorStop(0, `rgba(255,255,255,${0.85 + smoothed * 0.15})`);
-      core.addColorStop(1, "rgba(180, 225, 255, 0)");
+      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.55);
+      core.addColorStop(0, `rgba(255,255,255,${0.9 + smoothed * 0.1})`);
+      core.addColorStop(0.25, "rgba(215, 245, 255, 0.45)");
+      core.addColorStop(1, "rgba(150, 210, 255, 0)");
       ctx.fillStyle = core;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius * 0.3, 0, Math.PI * 2);
+      ctx.arc(cx, cy, radius * 0.55, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.globalCompositeOperation = "source-over";
+
 
       raf = requestAnimationFrame(draw);
     };
