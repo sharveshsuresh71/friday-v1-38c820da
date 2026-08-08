@@ -110,7 +110,7 @@ export function FridayOrb({ state, level }: { state: FridayState; level: number 
 
       const cx = width / 2;
       const cy = height / 2;
-      const base = Math.min(width, height) * 0.34;
+      const base = Math.min(width, height) * 0.42;
       const radius = base * (1 + smoothed * 0.26 + Math.sin(time * 1.1) * 0.02);
 
       ctx.clearRect(0, 0, width, height);
