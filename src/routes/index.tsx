@@ -206,4 +206,4 @@ function Index() {
     </ClientOnly>
   );
 }
-#lovable-badge { display: none !important; }
+
