@@ -3,6 +3,11 @@ import { ClientOnly } from "@tanstack/react-router";
 import { Mic, Square, RotateCcw } from "lucide-react";
 import { useFriday, type FridayState } from "@/hooks/use-friday";
 import { FridayOrb } from "@/components/friday-orb";
+import { Starfield } from "@/components/starfield";
+import { SpectrumRing } from "@/components/spectrum-ring";
+import { Shockwave } from "@/components/shockwave";
+import { BootSequence } from "@/components/boot-sequence";
+
 
 
 export const Route = createFileRoute("/")({
