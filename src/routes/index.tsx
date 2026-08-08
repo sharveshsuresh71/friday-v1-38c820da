@@ -52,10 +52,21 @@ function Orb({ state, level }: { state: FridayState; level: number }) {
         style={{ transform: `scale(${1 + level * 0.06})`, transition: "transform 120ms linear" }}
       />
       <div className="pointer-events-none absolute inset-12 rounded-full border border-primary/10" />
+
+      {/* rotating HUD reticles */}
+      <div className="animate-spin-slow pointer-events-none absolute -inset-4 rounded-full border border-dashed border-primary/20" />
+      <div className="animate-spin-reverse pointer-events-none absolute -inset-8 rounded-full border border-primary/10">
+        <span className="absolute top-1/2 -left-[3px] h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary shadow-orb" />
+        <span className="absolute top-1/2 -right-[3px] h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-primary/70" />
+      </div>
+
+      <SpectrumRing state={state} level={level} />
+      <Shockwave state={state} />
       <FridayOrb state={state} level={level} />
     </div>
   );
 }
+
 
 function FridayScreen() {
   const { state, level, error, live, start, stop, clear, lastReply, lastAsk, turns } = useFriday();
