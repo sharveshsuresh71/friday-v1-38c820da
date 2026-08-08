@@ -95,6 +95,32 @@
     transform: translateY(0);
   }
 }
+@keyframes shockwave {
+  from {
+    transform: scale(0.72);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-10%);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(110%);
+    opacity: 0;
+  }
+}
+
 
 :root,
 .dark {
