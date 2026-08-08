@@ -73,7 +73,18 @@ function FridayScreen() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <BootSequence />
+      <Starfield />
       <div
+        aria-hidden
+        className="animate-scan pointer-events-none absolute inset-x-0 top-0 h-40"
+        style={{
+          background: "linear-gradient(to bottom, transparent, var(--halo), transparent)",
+          opacity: 0.35,
+        }}
+      />
+      <div
+
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
