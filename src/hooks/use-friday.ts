@@ -41,6 +41,7 @@ export function useFriday() {
 
   const listenerRef = useRef<Listener | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackCtxRef = useRef<AudioContext | null>(null);
   const busyRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
   const handleUtteranceRef = useRef<((wav: Blob) => Promise<void>) | null>(null);
