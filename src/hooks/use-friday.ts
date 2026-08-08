@@ -41,6 +41,7 @@ export function useFriday() {
 
   const listenerRef = useRef<Listener | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playbackCtxRef = useRef<AudioContext | null>(null);
   const busyRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
   const handleUtteranceRef = useRef<((wav: Blob) => Promise<void>) | null>(null);
@@ -75,6 +76,38 @@ export function useFriday() {
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
     audio.src = url;
+    audio.volume = 1;
+    audio.preload = "auto";
+
+    // Route playback through a gain stage so the reply is much louder than the
+    // raw TTS output, with a compressor + limiter so it never clips.
+    try {
+      const AC: typeof AudioContext | undefined =
+        window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AC) {
+        let ctx = playbackCtxRef.current;
+        if (!ctx || ctx.state === "closed") {
+          ctx = new AC();
+          playbackCtxRef.current = ctx;
+          const source = ctx.createMediaElementSource(audio);
+          const compressor = ctx.createDynamicsCompressor();
+          compressor.threshold.value = -22;
+          compressor.knee.value = 24;
+          compressor.ratio.value = 8;
+          compressor.attack.value = 0.003;
+          compressor.release.value = 0.25;
+          const gain = ctx.createGain();
+          gain.gain.value = 4.5;
+          source.connect(compressor);
+          compressor.connect(gain);
+          gain.connect(ctx.destination);
+        }
+        if (ctx.state !== "running") await ctx.resume().catch(() => {});
+      }
+    } catch {
+      /* gain boost unavailable — plain playback still works */
+    }
+
     setState("speaking");
     await new Promise<void>((resolve) => {
       audio.onended = () => resolve();
