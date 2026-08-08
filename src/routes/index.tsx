@@ -34,19 +34,19 @@ const STATUS_LABEL: Record<FridayState, string> = {
 
 function Orb({ state, level }: { state: FridayState; level: number }) {
   return (
-    <div className="relative h-72 w-72">
+    <div className="relative mx-auto aspect-square w-[min(88vw,26rem)]">
       <div
-        className="pointer-events-none absolute -inset-10 rounded-full blur-3xl transition-opacity duration-700"
+        className="pointer-events-none absolute -inset-16 rounded-full blur-3xl transition-opacity duration-700"
         style={{
           background: "radial-gradient(circle at 50% 50%, var(--halo), transparent 70%)",
           opacity: state === "idle" ? 0.5 : 1,
         }}
       />
       <div
-        className="pointer-events-none absolute inset-2 rounded-full border border-primary/15"
+        className="pointer-events-none absolute inset-1 rounded-full border border-primary/15"
         style={{ transform: `scale(${1 + level * 0.06})`, transition: "transform 120ms linear" }}
       />
-      <div className="pointer-events-none absolute inset-8 rounded-full border border-primary/10" />
+      <div className="pointer-events-none absolute inset-12 rounded-full border border-primary/10" />
       <FridayOrb state={state} level={level} />
     </div>
   );
@@ -77,7 +77,7 @@ function FridayScreen() {
         }}
       />
 
-      <main className="relative mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pt-10 pb-12">
+      <main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-6 pt-10 pb-12">
         <header className="flex items-center justify-between">
           <div>
             <h1 className="bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-lg font-medium tracking-[0.34em] text-transparent uppercase">
@@ -98,7 +98,7 @@ function FridayScreen() {
           )}
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-7">
+        <div className="flex flex-1 flex-col items-center justify-center gap-6">
           <Orb state={state} level={level} />
 
           <div
