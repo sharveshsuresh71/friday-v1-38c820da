@@ -1,5 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+// Warm, realistic female voices. The configured voice is tried first, then these
+// defaults — library voices are rejected on free ElevenLabs plans.
+const FEMALE_VOICES = [
+  "EXAVITQu4vr4xnSDxMaL", // Sarah — warm, natural
+  "cgSgspJ2msm6clMCkdW9", // Jessica — expressive
+  "XrExE9yKIg1WjnnlVkGX", // Matilda — soft
+];
+
 export const Route = createFileRoute("/api/friday/speak")({
   server: {
     handlers: {
@@ -9,41 +17,51 @@ export const Route = createFileRoute("/api/friday/speak")({
         if (!text) return new Response("Text is required", { status: 400 });
 
         const elevenKey = process.env["ELEVENLABS_API_KEY"];
-        const voiceId = process.env["ELEVENLABS_VOICE_ID"];
+        const configured = process.env["ELEVENLABS_VOICE_ID"];
 
-        if (elevenKey && voiceId) {
-          const res = await fetch(
-            `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=mp3_44100_128`,
-            {
-              method: "POST",
-              headers: {
-                "xi-api-key": elevenKey,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                text: text.slice(0, 4000),
-                model_id: "eleven_turbo_v2_5",
-                voice_settings: {
-                  stability: 0.45,
-                  similarity_boost: 0.8,
-                  style: 0.35,
-                  use_speaker_boost: true,
+        if (elevenKey) {
+          const voices = [...(configured ? [configured] : []), ...FEMALE_VOICES].filter(
+            (v, i, a) => a.indexOf(v) === i,
+          );
+
+          for (const voiceId of voices) {
+            const res = await fetch(
+              `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=mp3_44100_128`,
+              {
+                method: "POST",
+                headers: {
+                  "xi-api-key": elevenKey,
+                  "Content-Type": "application/json",
                 },
-              }),
-            },
-          );
+                body: JSON.stringify({
+                  text: text.slice(0, 4000),
+                  // Highest-realism model — handles singing/expressive delivery best.
+                  model_id: "eleven_multilingual_v2",
+                  voice_settings: {
+                    stability: 0.4,
+                    similarity_boost: 0.85,
+                    style: 0.5,
+                    use_speaker_boost: true,
+                  },
+                }),
+              },
+            );
 
-          if (res.ok && res.body) {
-            return new Response(res.body, {
-              headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
-            });
+            if (res.ok && res.body) {
+              return new Response(res.body, {
+                headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
+              });
+            }
+
+            console.error(
+              `ElevenLabs speech failed for ${voiceId} [${res.status}]: ${await res
+                .text()
+                .catch(() => "")}`,
+            );
           }
-
-          // ElevenLabs unavailable (plan limits, quota, bad key) — fall through to Lovable AI voice.
-          console.error(
-            `ElevenLabs speech failed [${res.status}]: ${await res.text().catch(() => "")}`,
-          );
         }
+
+
 
 
         const key = process.env["LOVABLE_API_KEY"];
