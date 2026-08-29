@@ -90,26 +90,59 @@ export function useFriday() {
     }
   }, []);
 
-  // Free TTS via the browser's built-in voice — no server call, no key.
-  const speak = useCallback((text: string) => {
-    return new Promise<void>((resolve) => {
+  // Voices list loads asynchronously in most browsers — this waits for it
+  // instead of racing an empty array on the very first speak() call.
+  const getVoicesReady = useCallback((): Promise<SpeechSynthesisVoice[]> => {
+    return new Promise((resolve) => {
       if (typeof window === "undefined" || !window.speechSynthesis) {
-        resolve();
+        resolve([]);
         return;
       }
-      setState("speaking");
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.rate = 1;
-      utter.pitch = 1;
-      const voices = window.speechSynthesis.getVoices();
-      const warm = voices.find((v) => /female|samantha|jenny|zira/i.test(v.name));
-      if (warm) utter.voice = warm;
-      utter.onend = () => resolve();
-      utter.onerror = () => resolve();
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
+      const existing = window.speechSynthesis.getVoices();
+      if (existing.length > 0) {
+        resolve(existing);
+        return;
+      }
+      const onVoices = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoices);
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onVoices);
+      // Fallback in case the event never fires on this browser.
+      setTimeout(() => resolve(window.speechSynthesis.getVoices()), 500);
     });
   }, []);
+
+  // Names of common female system voices across Windows, macOS/iOS, Android, and Chrome.
+  const FEMALE_VOICE_HINTS =
+    /female|samantha|victoria|karen|moira|tessa|fiona|susan|zira|jenny|aria|libby|olivia|salli|joanna|ivy|kendra|kimberly|amy|emma|google uk english female|google us english/i;
+
+  // Free TTS via the browser's built-in voice — no server call, no key.
+  const speak = useCallback(
+    async (text: string) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) return;
+      setState("speaking");
+
+      const voices = await getVoicesReady();
+      const enVoices = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
+      const warm =
+        enVoices.find((v) => FEMALE_VOICE_HINTS.test(v.name)) ??
+        voices.find((v) => FEMALE_VOICE_HINTS.test(v.name)) ??
+        enVoices[0];
+
+      await new Promise<void>((resolve) => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 1;
+        utter.pitch = 1;
+        if (warm) utter.voice = warm;
+        utter.onend = () => resolve();
+        utter.onerror = () => resolve();
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      });
+    },
+    [getVoicesReady],
+  );
 
   const handleTranscript = useCallback(
     async (text: string) => {
