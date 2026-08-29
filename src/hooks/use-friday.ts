@@ -1,10 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { startListening, type Listener } from "@/lib/voice-listener";
 
 export type Turn = { role: "user" | "assistant"; content: string; at: number };
 export type FridayState = "idle" | "listening" | "thinking" | "speaking";
 
 const STORAGE_KEY = "friday.conversation.v1";
+
+// --- Web Speech API types (not in default TS lib) ---
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+interface SpeechRecognitionEventLike extends Event {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+  resultIndex: number;
+}
+interface SpeechRecognitionLike extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((ev: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((ev: Event & { error?: string }) => void) | null;
+  onend: (() => void) | null;
+}
+
+function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
 
 function loadTurns(): Turn[] {
   if (typeof window === "undefined") return [];
@@ -39,12 +67,10 @@ export function useFriday() {
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
 
-  const listenerRef = useRef<Listener | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const playbackCtxRef = useRef<AudioContext | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const busyRef = useRef(false);
   const turnsRef = useRef<Turn[]>([]);
-  const handleUtteranceRef = useRef<((wav: Blob) => Promise<void>) | null>(null);
+  const pulseRef = useRef<number | null>(null);
 
   useEffect(() => {
     setTurns(loadTurns());
@@ -64,78 +90,35 @@ export function useFriday() {
     }
   }, []);
 
-  const speak = useCallback(async (text: string) => {
-    const res = await fetch("/api/friday/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error(await readError(res));
-
-    const url = URL.createObjectURL(await res.blob());
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-    audio.src = url;
-    audio.volume = 1;
-    audio.preload = "auto";
-
-    // Route playback through a gain stage so the reply is much louder than the
-    // raw TTS output, with a compressor + limiter so it never clips.
-    try {
-      const AC: typeof AudioContext | undefined =
-        window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AC) {
-        let ctx = playbackCtxRef.current;
-        if (!ctx || ctx.state === "closed") {
-          ctx = new AC();
-          playbackCtxRef.current = ctx;
-          const source = ctx.createMediaElementSource(audio);
-          const compressor = ctx.createDynamicsCompressor();
-          compressor.threshold.value = -22;
-          compressor.knee.value = 24;
-          compressor.ratio.value = 8;
-          compressor.attack.value = 0.003;
-          compressor.release.value = 0.25;
-          const gain = ctx.createGain();
-          gain.gain.value = 4.5;
-          source.connect(compressor);
-          compressor.connect(gain);
-          gain.connect(ctx.destination);
-        }
-        if (ctx.state !== "running") await ctx.resume().catch(() => {});
+  // Free TTS via the browser's built-in voice — no server call, no key.
+  const speak = useCallback((text: string) => {
+    return new Promise<void>((resolve) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        resolve();
+        return;
       }
-    } catch {
-      /* gain boost unavailable — plain playback still works */
-    }
-
-    setState("speaking");
-    await new Promise<void>((resolve) => {
-      audio.onended = () => resolve();
-      audio.onerror = () => resolve();
-      void audio.play().catch(() => resolve());
+      setState("speaking");
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1;
+      utter.pitch = 1;
+      const voices = window.speechSynthesis.getVoices();
+      const warm = voices.find((v) => /female|samantha|jenny|zira/i.test(v.name));
+      if (warm) utter.voice = warm;
+      utter.onend = () => resolve();
+      utter.onerror = () => resolve();
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
     });
-    URL.revokeObjectURL(url);
   }, []);
 
-  const handleUtterance = useCallback(
-    async (wav: Blob) => {
-      if (busyRef.current) return;
+  const handleTranscript = useCallback(
+    async (text: string) => {
+      if (!text.trim() || busyRef.current) return;
       busyRef.current = true;
-      listenerRef.current?.setPaused(true);
       setError(null);
       setState("thinking");
 
       try {
-        const form = new FormData();
-        form.append("audio", wav, "recording.wav");
-        const sttRes = await fetch("/api/friday/transcribe", { method: "POST", body: form });
-        if (!sttRes.ok) throw new Error(await readError(sttRes));
-        const { text } = (await sttRes.json()) as { text: string };
-        if (!text) {
-          setState("listening");
-          return;
-        }
-
         const withUser: Turn[] = [
           ...turnsRef.current,
           { role: "user", content: text, at: Date.now() },
@@ -154,47 +137,22 @@ export function useFriday() {
 
         persist([...withUser, { role: "assistant", content: reply, at: Date.now() }]);
         await speak(reply);
-        setState("listening");
+        setState(recognitionRef.current ? "listening" : "idle");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
-        setState("listening");
+        setState(recognitionRef.current ? "listening" : "idle");
       } finally {
         busyRef.current = false;
-        const listener = listenerRef.current;
-        if (listener) {
-          listener.setPaused(false);
-          await listener.resume();
-          // Chrome (esp. Android) can tear down the mic graph during playback —
-          // rebuild it so the session keeps running for unlimited turns.
-          if (!listener.isAlive()) {
-            listener.stop();
-            listenerRef.current = null;
-            try {
-              listenerRef.current = await startListening({
-                onLevel: setLevel,
-                onUtterance: (wav) => void handleUtteranceRef.current?.(wav),
-              });
-              setState("listening");
-            } catch {
-              setError("Microphone stopped. Tap start to continue.");
-              setLive(false);
-              setState("idle");
-            }
-          }
-        }
       }
     },
     [persist, speak],
   );
 
-  useEffect(() => {
-    handleUtteranceRef.current = handleUtterance;
-  }, [handleUtterance]);
-
   const stop = useCallback(() => {
-    listenerRef.current?.stop();
-    listenerRef.current = null;
-    audioRef.current?.pause();
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    if (pulseRef.current) cancelAnimationFrame(pulseRef.current);
     busyRef.current = false;
     setLive(false);
     setLevel(0);
@@ -203,54 +161,79 @@ export function useFriday() {
 
   const start = useCallback(async () => {
     setError(null);
-    try {
-      // Unlock audio playback inside the user gesture (required on Android/iOS).
-      const audio = audioRef.current ?? new Audio();
-      audioRef.current = audio;
-
-      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        throw new DOMException("unsupported", "NotSupportedError");
-      }
-
-      listenerRef.current = await startListening({
-        onLevel: setLevel,
-        onUtterance: (wav) => void handleUtterance(wav),
-      });
-      setLive(true);
-      setState("listening");
-    } catch (err) {
-      const name = err instanceof DOMException ? err.name : "";
-      const insecure =
-        typeof window !== "undefined" &&
-        !window.isSecureContext &&
-        window.location.hostname !== "localhost";
-
-      if (insecure || name === "NotSupportedError") {
-        setError(
-          "Microphone needs a secure connection. Open the app with https:// (the installed app icon uses it too) and try again.",
-        );
-      } else if (name === "NotAllowedError" || name === "SecurityError") {
-        setError(
-          "Microphone is blocked for this app. Open your phone's Settings → Apps → FRIDAY → Permissions → Microphone and allow it, then reopen the app. In Chrome: tap the lock icon in the address bar → Permissions → Microphone → Allow.",
-        );
-      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-        setError("No microphone was found on this device.");
-      } else if (name === "NotReadableError" || name === "AbortError") {
-        setError("Another app is using the microphone. Close it and try again.");
-      } else {
-        setError("Microphone couldn't start. Allow mic access and try again.");
-      }
-      setState("idle");
+    const Ctor = getRecognitionCtor();
+    if (!Ctor) {
+      setError(
+        "Free voice recognition needs Chrome, Edge, or Safari — this browser doesn't support it.",
+      );
+      return;
     }
-  }, [handleUtterance]);
 
+    try {
+      // Ask for mic permission up front so the error message is clear if denied.
+      await navigator.mediaDevices?.getUserMedia({ audio: true });
+    } catch {
+      setError("Microphone is blocked for this app. Allow mic access in your browser settings.");
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (ev) => {
+      let finalText = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        if (r?.isFinal) finalText += r[0].transcript;
+      }
+      if (finalText.trim()) void handleTranscript(finalText.trim());
+    };
+
+    recognition.onerror = (ev) => {
+      const err = (ev as Event & { error?: string }).error;
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        setError("Microphone is blocked. Allow mic access and try again.");
+        setLive(false);
+        setState("idle");
+      }
+      // "no-speech" / "aborted" are routine — recognition auto-restarts via onend.
+    };
+
+    recognition.onend = () => {
+      // Browsers stop recognition after a period of silence — restart to stay "always on".
+      if (recognitionRef.current === recognition && live) {
+        try {
+          recognition.start();
+        } catch {
+          /* already starting */
+        }
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setLive(true);
+    setState("listening");
+
+    // Simple pulsing level so the UI still has motion (Web Speech API gives no real levels).
+    const pulse = () => {
+      setLevel((v) => (state === "listening" ? 0.3 + 0.2 * Math.sin(Date.now() / 300) : v));
+      pulseRef.current = requestAnimationFrame(pulse);
+    };
+    pulseRef.current = requestAnimationFrame(pulse);
+  }, [handleTranscript, live, state]);
 
   const clear = useCallback(() => {
     persist([]);
     setError(null);
   }, [persist]);
 
-  useEffect(() => () => listenerRef.current?.stop(), []);
+  useEffect(() => () => {
+    recognitionRef.current?.stop();
+    if (pulseRef.current) cancelAnimationFrame(pulseRef.current);
+  }, []);
 
   const lastReply = useMemo(
     () => [...turns].reverse().find((t) => t.role === "assistant")?.content ?? null,
