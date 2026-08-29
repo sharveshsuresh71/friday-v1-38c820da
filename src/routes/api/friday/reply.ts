@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/friday/reply")({
           },
           body: JSON.stringify({
             // Free, fast, and solid quality for conversational replies.
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b",
             messages: [{ role: "system", content: SYSTEM_PROMPT }, ...trimmed],
           }),
         });
