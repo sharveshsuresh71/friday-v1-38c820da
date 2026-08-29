@@ -117,11 +117,10 @@ export function useFriday() {
   const FEMALE_VOICE_HINTS =
     /female|samantha|victoria|karen|moira|tessa|fiona|susan|zira|jenny|aria|libby|olivia|salli|joanna|ivy|kendra|kimberly|amy|emma|google uk english female|google us english/i;
 
-  // Free TTS via the browser's built-in voice — no server call, no key.
-  const speak = useCallback(
+  // Free fallback: the browser's built-in voice, no server call, no key.
+  const speakInBrowser = useCallback(
     async (text: string) => {
       if (typeof window === "undefined" || !window.speechSynthesis) return;
-      setState("speaking");
 
       const voices = await getVoicesReady();
       const enVoices = voices.filter((v) => v.lang?.toLowerCase().startsWith("en"));
@@ -142,6 +141,36 @@ export function useFriday() {
       });
     },
     [getVoicesReady],
+  );
+
+  // Tries your ElevenLabs voice first; silently falls back to the free
+  // browser voice if ElevenLabs isn't configured or the call fails.
+  const speak = useCallback(
+    async (text: string) => {
+      setState("speaking");
+
+      try {
+        const res = await fetch("/api/friday/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) throw new Error(`speak endpoint returned ${res.status}`);
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        await new Promise<void>((resolve) => {
+          const audio = new Audio(url);
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(() => resolve());
+        });
+        URL.revokeObjectURL(url);
+      } catch {
+        await speakInBrowser(text);
+      }
+    },
+    [speakInBrowser],
   );
 
   const handleTranscript = useCallback(
