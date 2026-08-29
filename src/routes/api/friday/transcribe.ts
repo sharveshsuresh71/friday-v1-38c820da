@@ -6,7 +6,8 @@ export const Route = createFileRoute("/api/friday/transcribe")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env["LOVABLE_API_KEY"];
+        // Was: process.env["LOVABLE_API_KEY"] via ai.gateway.lovable.dev
+        const key = process.env["OPENAI_API_KEY"];
         if (!key) return new Response("AI is not configured", { status: 500 });
 
         const form = await request.formData();
@@ -19,10 +20,10 @@ export const Route = createFileRoute("/api/friday/transcribe")({
         }
 
         const upstream = new FormData();
-        upstream.append("model", "openai/gpt-4o-mini-transcribe");
+        upstream.append("model", "gpt-4o-mini-transcribe");
         upstream.append("file", audio, "recording.wav");
 
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
+        const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
           method: "POST",
           headers: { Authorization: `Bearer ${key}` },
           body: upstream,

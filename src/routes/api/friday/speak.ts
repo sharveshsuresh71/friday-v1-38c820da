@@ -61,20 +61,18 @@ export const Route = createFileRoute("/api/friday/speak")({
           }
         }
 
-
-
-
-        const key = process.env["LOVABLE_API_KEY"];
+        // Was: process.env["LOVABLE_API_KEY"] via ai.gateway.lovable.dev
+        const key = process.env["OPENAI_API_KEY"];
         if (!key) return new Response("AI is not configured", { status: 500 });
 
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/speech", {
+        const res = await fetch("https://api.openai.com/v1/audio/speech", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${key}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "openai/gpt-4o-mini-tts",
+            model: "gpt-4o-mini-tts",
             input: text.slice(0, 4000),
             voice: "shimmer",
             instructions: "Calm, warm, composed. Speak like a quietly capable personal assistant.",

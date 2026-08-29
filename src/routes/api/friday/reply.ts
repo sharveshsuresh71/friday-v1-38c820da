@@ -11,12 +11,12 @@ const SYSTEM_PROMPT = [
   "If asked to sing, sing: write the lyrics as flowing spoken lines with expressive punctuation and elongated vowels (like 'oooh', 'laaa'), never as a list or with song titles in brackets.",
 ].join(" ");
 
-
 export const Route = createFileRoute("/api/friday/reply")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const key = process.env["LOVABLE_API_KEY"];
+        // Was: process.env["LOVABLE_API_KEY"] via ai.gateway.lovable.dev
+        const key = process.env["OPENAI_API_KEY"];
         if (!key) return new Response("AI is not configured", { status: 500 });
 
         const body = (await request.json().catch(() => null)) as { history?: Turn[] } | null;
@@ -30,14 +30,14 @@ export const Route = createFileRoute("/api/friday/reply")({
           .slice(-24)
           .map((t) => ({ role: t.role, content: t.content }));
 
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${key}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3.6-flash",
+            model: "gpt-4o-mini",
             messages: [{ role: "system", content: SYSTEM_PROMPT }, ...trimmed],
           }),
         });
